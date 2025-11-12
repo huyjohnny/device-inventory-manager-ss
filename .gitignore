@@ -1,0 +1,29 @@
+# OS and editor junk
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+dist/
+build/
+
+# Java / Spring Boot
+target/
+*.class
+*.jar
+*.war
+*.log
+
+# Environment files
+.env
+application.properties
+application.yml
+
+# Database
+*.db
+*.sqlite
+
+# IDEs
+.idea/
+.vscode/
+*.iml
