@@ -22,7 +22,7 @@ Built with **Java Spring Boot**, **PostgreSQL**, and **React**.
 ---
 
 ## Documentation
-- [Entity Relationship Diagram (ERD)](./docs/ERD.md)
+- Entity Relationship Diagram (ERD)
 
 ---
 
