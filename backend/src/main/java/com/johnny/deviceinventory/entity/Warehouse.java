@@ -1,6 +1,9 @@
 package com.johnny.deviceinventory.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Min;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import java.util.List;
 
 @Entity
@@ -9,12 +12,20 @@ public class Warehouse {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Warehouse name is required")
     private String name;
+
+    @NotBlank(message = "Location is required")
     private String location;
+
+    @Min(value = 0, message = "Capacity is required")
     private Integer capacity;
+
+    @NotBlank(message = "Description is required")
     private String description;
 
     @OneToMany(mappedBy = "warehouse", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<Device> devices;
 
     // Getters and Setters

@@ -1,6 +1,7 @@
 package com.johnny.deviceinventory.controller;
 
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 import java.util.List;
 import com.johnny.deviceinventory.entity.Warehouse;
 import com.johnny.deviceinventory.service.WarehouseService;
@@ -25,12 +26,12 @@ public class WarehouseController {
     }
 
     @PostMapping
-    public Warehouse create(@RequestBody Warehouse warehouse) {
+    public Warehouse create(@Valid @RequestBody Warehouse warehouse) {
         return warehouseService.save(warehouse);
     }
 
     @PutMapping("/{id}")
-    public Warehouse update(@PathVariable Long id, @RequestBody Warehouse warehouse) {
+    public Warehouse update(@PathVariable Long id, @Valid @RequestBody Warehouse warehouse) {
         warehouse.setId(id);
         return warehouseService.save(warehouse);
     }

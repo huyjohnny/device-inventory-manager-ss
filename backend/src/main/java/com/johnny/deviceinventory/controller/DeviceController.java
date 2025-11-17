@@ -1,6 +1,7 @@
 package com.johnny.deviceinventory.controller;
 
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 import java.util.List;
 import com.johnny.deviceinventory.entity.Device;
 import com.johnny.deviceinventory.service.DeviceService;
@@ -25,15 +26,16 @@ public class DeviceController {
     }
 
     @PostMapping
-    public Device create(@RequestBody Device device) {
-        return deviceService.save(device);
+    public Device create(@RequestParam Long warehouseId, @Valid @RequestBody Device device) {
+        return deviceService.save(device, warehouseId);
     }
 
     @PutMapping("/{id}")
-    public Device update(@PathVariable Long id, @RequestBody Device device) {
+    public Device update(@PathVariable Long id, @RequestParam Long warehouseId, @Valid @RequestBody Device device) {
         device.setId(id);
-        return deviceService.save(device);
+        return deviceService.save(device, warehouseId);
     }
+
 
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {

@@ -1,6 +1,9 @@
 package com.johnny.deviceinventory.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Min;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 @Entity
 public class Device {
@@ -8,16 +11,30 @@ public class Device {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Model name is required")
     private String modelName;
+
+    @NotBlank(message = "Brand is required")
     private String brand;
+
+    @NotBlank(message = "Category is required")
     private String category;
+
+    @NotBlank(message = "SKU is required")
     private String sku;
+
+    @Min(value = 0, message = "Quantity is required")
     private Integer quantity;
+
+    @NotBlank(message = "Description is required")
     private String description;
+
+    @NotBlank(message = "Storage Location is required")
     private String storageLocation;
 
     @ManyToOne
     @JoinColumn(name = "warehouse_id")
+    @JsonBackReference
     private Warehouse warehouse;
 
     // Getters and Setters
