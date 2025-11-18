@@ -8,6 +8,7 @@ import com.johnny.deviceinventory.service.WarehouseService;
 
 @RestController
 @RequestMapping("/api/warehouses")
+@CrossOrigin(origins = "http://localhost:3000")
 public class WarehouseController {
     private final WarehouseService warehouseService;
 
@@ -25,7 +26,7 @@ public class WarehouseController {
         return warehouseService.getById(id);
     }
 
-    @PostMapping
+    @PostMapping(consumes = "application/json")
     public Warehouse create(@Valid @RequestBody Warehouse warehouse) {
         return warehouseService.save(warehouse);
     }

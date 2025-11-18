@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Min;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 @Entity
@@ -25,7 +26,7 @@ public class Warehouse {
     private String description;
 
     @OneToMany(mappedBy = "warehouse", cascade = CascadeType.ALL)
-    @JsonManagedReference
+    @JsonIgnoreProperties("warehouse")
     private List<Device> devices;
 
     // Getters and Setters

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Min;
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 public class Device {
@@ -32,9 +33,9 @@ public class Device {
     @NotBlank(message = "Storage Location is required")
     private String storageLocation;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "warehouse_id")
-    @JsonBackReference
+    @JsonIgnoreProperties("devices")
     private Warehouse warehouse;
 
     // Getters and Setters

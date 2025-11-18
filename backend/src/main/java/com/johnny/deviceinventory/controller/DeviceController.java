@@ -8,6 +8,7 @@ import com.johnny.deviceinventory.service.DeviceService;
 
 @RestController
 @RequestMapping("/api/devices")
+@CrossOrigin(origins = "http://localhost:3000")
 public class DeviceController {
     private final DeviceService deviceService;
 
