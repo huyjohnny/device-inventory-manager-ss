@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.util.List;
 import com.johnny.deviceinventory.entity.Warehouse;
+import com.johnny.deviceinventory.service.DeviceService;
 import com.johnny.deviceinventory.service.WarehouseService;
 
 @RestController
@@ -11,9 +12,11 @@ import com.johnny.deviceinventory.service.WarehouseService;
 @CrossOrigin(origins = "http://localhost:3000")
 public class WarehouseController {
     private final WarehouseService warehouseService;
+    private final DeviceService deviceService;
 
-    public WarehouseController(WarehouseService warehouseService) {
+    public WarehouseController(WarehouseService warehouseService, DeviceService deviceService) {
         this.warehouseService = warehouseService;
+        this.deviceService = deviceService;
     }
 
     @GetMapping
@@ -24,6 +27,11 @@ public class WarehouseController {
     @GetMapping("/{id}")
     public Warehouse getById(@PathVariable Long id) {
         return warehouseService.getById(id);
+    }
+
+    @GetMapping("/{id}/capacityUsed")
+    public int getCapacityUsed(@PathVariable Long id) {
+        return deviceService.getCapacityUsed(id);
     }
 
     @PostMapping(consumes = "application/json")

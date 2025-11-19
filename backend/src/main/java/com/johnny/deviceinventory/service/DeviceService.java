@@ -31,14 +31,50 @@ public class DeviceService {
                 .orElseThrow(() -> new RuntimeException("Warehouse not found"));
     }
 
-    // Updated version save func to load warehouse
+    // Get sum of quantities for a warhouse
+    public int getCapacityUsed(Long warehouseId) {
+        return deviceRepository.sumQuantityByWarehouseId(warehouseId);
+    }
+
+    // Updated version: save device with warehouse capacity check
     public Device save(Device device, Long warehouseId) {
         Warehouse warehouse = warehouseRepository.findById(warehouseId)
-            .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+                .orElseThrow(() -> new RuntimeException("Warehouse not found"));
 
+        boolean isNewDevice = (device.getId() == null);
+
+        // If updating, load the existing device
+        Warehouse oldWarehouse = null;
+        if (!isNewDevice) {
+            Device existing = deviceRepository.findById(device.getId())
+                    .orElseThrow(() -> new RuntimeException("Device not found"));
+            oldWarehouse = existing.getWarehouse();
+        }
+
+        // NEW DEVICE
+        if (isNewDevice) {
+            long currentCount = deviceRepository.countByWarehouseId(warehouseId);
+            if (currentCount >= warehouse.getCapacity()) {
+                throw new RuntimeException("Warehouse is full — cannot add more devices.");
+            }
+        }
+
+        // EXISTING DEVICE
+        if (!isNewDevice && !oldWarehouse.getId().equals(warehouseId)) {
+
+            long currentCount = deviceRepository.countByWarehouseId(warehouseId);
+            if (currentCount >= warehouse.getCapacity()) {
+                throw new RuntimeException("Warehouse is full — cannot move this device.");
+            }
+        }
+
+        // Works - assign the new warehouse
         device.setWarehouse(warehouse);
+
         return deviceRepository.save(device);
     }
+
+
 
     public Device saveRaw(Device device) {
         return deviceRepository.save(device);

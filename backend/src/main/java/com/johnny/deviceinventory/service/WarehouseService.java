@@ -2,6 +2,8 @@ package com.johnny.deviceinventory.service;
 
 import org.springframework.stereotype.Service;
 import java.util.List;
+
+import com.johnny.deviceinventory.entity.Device;
 import com.johnny.deviceinventory.entity.Warehouse;
 import com.johnny.deviceinventory.repository.WarehouseRepository;
 
@@ -28,4 +30,16 @@ public class WarehouseService {
     public void delete(Long id) {
         warehouseRepository.deleteById(id);
     }
+
+    // Get total devices amount stored in warehouse
+    public int getUsedCapacity(Long warehouseId) {
+        Warehouse warehouse = warehouseRepository.findById(warehouseId)
+                .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+
+        return warehouse.getDevices()
+                .stream()
+                .mapToInt(Device::getQuantity)
+                .sum();
+    }
+
 }

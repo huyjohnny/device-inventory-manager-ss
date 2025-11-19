@@ -10,6 +10,11 @@ const Dashboard = () => {
     const [editingWarehouse, setEditingWarehouse] = useState(null);
     const [editingDevice, setEditingDevice] = useState(null);
 
+    // Capacity State
+    const [warehouseUsage, setWarehouseUsage] = useState({});
+
+    // Search State
+    const [searchTerm, setSearchTerm] = useState("");
 
     // Form states
     const [newWarehouse, setNewWarehouse] = useState({
@@ -30,7 +35,7 @@ const Dashboard = () => {
         warehouseId: ""
     });
 
-    // Fetch warehouses and devices
+    // Fetch warehouses, warehouse usage (capacity used) and devices
     useEffect(() => {
         fetchWarehouses();
         fetchDevices();
@@ -39,14 +44,41 @@ const Dashboard = () => {
     const fetchWarehouses = async () => {
         const res = await fetch("http://localhost:8080/api/warehouses");
         const data = await res.json();
-        setWarehouses(data);
+        
+        // Fetch capacity used for each warehouse
+        const updatedData = await Promise.all(
+            data.map(async (w) => {
+                const capRes = await fetch(`http://localhost:8080/api/warehouses/${w.id}/capacityUsed`);
+                const capacityUsed = await capRes.json();
+                return { ...w, capacityUsed };
+            })
+        );
+
+        setWarehouses(updatedData);
     };
+
+    const fetchWarehouseUsage = async (warehouseId) => {
+        if (!warehouseId) return;
+        const res = await fetch(`http://localhost:8080/api/warehouses/${warehouseId}/capacityUsed`);
+        const data = await res.json();
+        setWarehouseUsage((prev) => ({ ...prev, [warehouseId]: data }));
+    };
+
 
     const fetchDevices = async () => {
         const res = await fetch("http://localhost:8080/api/devices");
         const data = await res.json();
         setDevices(data);
     };
+
+    // Filter
+    const filteredDevices = devices.filter(d =>
+        d.modelName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        d.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        d.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        d.storageLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (d.warehouse && d.warehouse.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
 
     // Warehouse CRUD
     const addWarehouse = async () => {
@@ -61,11 +93,13 @@ const Dashboard = () => {
             description: "" 
         });
         fetchWarehouses();
+        fetchDevices();
     }
 
     const deleteWarehouse = async (id) => {
         await fetch(`http://localhost:8080/api/warehouses/${id}`, { method: "DELETE"});
         fetchWarehouses();
+        fetchDevices();
     }
 
     const updateWarehouse = async () => {
@@ -82,6 +116,17 @@ const Dashboard = () => {
 
     // Device CRUD
     const addDevice = async () => {
+        if (!newDevice.warehouseId) return alert("Select a warehouse");
+
+        // Find the selected warehouse
+        const warehouse = warehouses.find(w => w.id === Number(newDevice.warehouseId));
+        if (!warehouse) return alert("Warehouse not found");
+
+        // Check if adding the device exceeds capacity
+        if ((warehouse.capacityUsed || 0) + newDevice.quantity > warehouse.capacity) {
+            return alert("Cannot add device: exceeds warehouse capacity!");
+        }
+
         await fetch(`http://localhost:8080/api/devices?warehouseId=${newDevice.warehouseId}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -93,20 +138,34 @@ const Dashboard = () => {
             sku: "", 
             quantity: 0, 
             description: "", 
-            storageLocation: ""
+            storageLocation: "",
+            warehouseId: ""
         });
         fetchDevices();
+        fetchWarehouses();
     }
 
     const deleteDevice = async (id) => {
         await fetch(`http://localhost:8080/api/devices/${id}`, { method: "DELETE"});
         fetchWarehouses();
+        fetchDevices();
     }
 
     const updateDevice = async () => {
         if (!editingDevice || !editingDevice.warehouseId) {
             alert("Please select a warehouse");
             return;
+        }
+
+        const warehouse = warehouses.find(w => w.id === Number(editingDevice.warehouseId));
+        if (!warehouse) return alert("Warehouse not found");
+
+        // Calculate capacity after update
+        const currentQty = devices.find(d => d.id === editingDevice.id)?.quantity || 0;
+        const newTotal = (warehouse.capacityUsed || 0) - currentQty + editingDevice.quantity;
+
+        if (newTotal > warehouse.capacity) {
+            return alert("Cannot update device: exceeds warehouse capacity!");
         }
 
         await fetch(`http://localhost:8080/api/devices/${editingDevice.id}?warehouseId=${editingDevice.warehouseId}`, {
@@ -129,7 +188,9 @@ const Dashboard = () => {
         .then(data => {
             console.log("Updated device:", data);
             setEditingDevice(null);
-            fetchDevices(); // refresh the list
+            // refresh
+            fetchDevices();
+            fetchWarehouses();
         })
         .catch(err => console.error(err));
     };
@@ -149,6 +210,7 @@ const Dashboard = () => {
                         <tr>
                         <th>Name</th>
                         <th>Location</th>
+                        <th>Used Capacity</th>
                         <th>Capacity</th>
                         <th>Description</th>
                         <th>Actions</th>
@@ -159,6 +221,7 @@ const Dashboard = () => {
                         <tr key={w.id}>
                             <td>{w.name}</td>
                             <td>{w.location}</td>
+                            <td>{w.capacityUsed}</td>
                             <td>{w.capacity}</td>
                             <td>{w.description}</td>
                             <td>
@@ -221,6 +284,11 @@ const Dashboard = () => {
             {/* --- Devices Section --- */}
             <section style={{ marginTop: "40px" }}>
                 <h2>Devices</h2>
+                <input
+                    placeholder="Search devices..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
                 <table border="1" cellPadding="5">
                     <thead>
                         <tr>
@@ -236,7 +304,7 @@ const Dashboard = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {devices.map((d) => (
+                        {filteredDevices.map((d) => (
                         <tr key={d.id}>
                             <td>{d.modelName}</td>
                             <td>{d.brand}</td>

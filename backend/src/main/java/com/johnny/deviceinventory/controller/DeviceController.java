@@ -28,8 +28,11 @@ public class DeviceController {
     }
 
     @PostMapping
-    public Device create(@RequestParam Long warehouseId, @Valid @RequestBody Device device) {
-        return deviceService.save(device, warehouseId);
+    public Device create(
+            @RequestParam Long warehouseId,
+            @Valid @RequestBody Device device) {
+
+        return deviceService.save(device, warehouseId); // includes capacity check
     }
 
     @PutMapping("/{id}")
@@ -38,7 +41,6 @@ public class DeviceController {
             @RequestParam Long warehouseId,
             @Valid @RequestBody Device updatedDevice) {
 
-        // Get the existing device
         Device existing = deviceService.getById(id);
         if (existing == null) {
             throw new RuntimeException("Device not found");
@@ -53,13 +55,14 @@ public class DeviceController {
         existing.setDescription(updatedDevice.getDescription());
         existing.setStorageLocation(updatedDevice.getStorageLocation());
 
-        // Update warehouse
+        // Important: set new warehouse before save()
         Warehouse warehouse = deviceService.getWarehouseById(warehouseId);
         existing.setWarehouse(warehouse);
 
-        // Save updated device
-        return deviceService.saveRaw(existing);
+        // Use main "save" so capacity rules run
+        return deviceService.save(existing, warehouseId);
     }
+
 
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
