@@ -25,11 +25,11 @@ public class DeviceService {
         return deviceRepository.findById(id).orElse(null);
     }
 
-    /* Depreciated 
-    public Device save(Device device) {
-        return deviceRepository.save(device);
+    // Fetch warehouse by id
+    public Warehouse getWarehouseById(Long warehouseId) {
+        return warehouseRepository.findById(warehouseId)
+                .orElseThrow(() -> new RuntimeException("Warehouse not found"));
     }
-    */
 
     // Updated version save func to load warehouse
     public Device save(Device device, Long warehouseId) {
