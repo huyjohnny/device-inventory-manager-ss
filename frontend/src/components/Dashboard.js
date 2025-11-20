@@ -1,4 +1,8 @@
+// Imports
 import React, { useState, useEffect } from "react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Box, Paper, Table, TableHead, TableBody, TableRow, TableCell, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, Typography, InputLabel, FormControl } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 
 // Main dashboard component
 const Dashboard = () => {
@@ -6,9 +10,16 @@ const Dashboard = () => {
     const [warehouses, setWarehouses] = useState([]);
     const [devices, setDevices] = useState([]);
 
+    // Open States for adding modals
+    const [openAddWarehouse, setOpenAddWarehouse] = useState(false);
+    const [openAddDevice, setOpenAddDevice] = useState(false);
+
     // Edit States
     const [editingWarehouse, setEditingWarehouse] = useState(null);
     const [editingDevice, setEditingDevice] = useState(null);
+
+    // Delete State
+    const [confirmDelete, setConfirmDelete] = useState({ open: false, type: "", id: null });
 
     // Capacity State
     const [warehouseUsage, setWarehouseUsage] = useState({});
@@ -76,8 +87,27 @@ const Dashboard = () => {
         d.modelName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         d.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
         d.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        d.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
         d.storageLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (d.warehouse && d.warehouse.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
+    // Theme insert
+    const theme = useTheme();
+
+    // For Warehouse Usage Chart
+    const warehouseChartData = warehouses.map(w => ({
+        name: w.name,
+        used: w.capacityUsed,
+        total: w.capacity
+    }));   
+    // For Device Quantity by Brand Chart
+    const deviceBrandData = Object.values(
+        devices.reduce((acc, d) => {
+            acc[d.brand] = acc[d.brand] || { brand: d.brand, quantity: 0 };
+            acc[d.brand].quantity += d.quantity;
+            return acc;
+        }, {})
     );
 
     // Warehouse CRUD
@@ -94,6 +124,9 @@ const Dashboard = () => {
         });
         fetchWarehouses();
         fetchDevices();
+
+        // Close warehouse modal
+        setOpenAddWarehouse(false);
     }
 
     const deleteWarehouse = async (id) => {
@@ -103,6 +136,12 @@ const Dashboard = () => {
     }
 
     const updateWarehouse = async () => {
+        // Check that you aren't lowering the capicity to less than what is currently being used
+        if (editingWarehouse.capacity < editingWarehouse.capacityUsed) {
+            alert(`Cannot set capacity lower than used capacity (${editingWarehouse.capacityUsed})`);
+            return;
+        }
+
         await fetch(`http://localhost:8080/api/warehouses/${editingWarehouse.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -143,6 +182,9 @@ const Dashboard = () => {
         });
         fetchDevices();
         fetchWarehouses();
+
+        // Close device modal
+        setOpenAddDevice(false);
     }
 
     const deleteDevice = async (id) => {
@@ -195,234 +237,223 @@ const Dashboard = () => {
         .catch(err => console.error(err));
     };
 
-
-
-
     return (
-        <div style={{ padding: "20px" }}>
-            <h1>Device Inventory Dashboard</h1>
+        <Box sx={{ p: 3, minHeight: "100vh", backgroundColor: "background.default" }}> 
+        <Typography variant="h4" mb={4} fontWeight="bold">
+        OVERVIEW </Typography>
+        <Box display="flex" gap={2} mb={4}>
+            {/* Warehouse Usage Chart */}
+            <Paper sx={{ flex: 1, p: 2 }}>
+                <Typography variant="h6" mb={2} color={theme.palette.text.primary}>
+                Warehouse Usage
+                </Typography>
+                <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={warehouseChartData}>
+                    <CartesianGrid stroke={theme.palette.text.secondary} strokeDasharray="3 3" />
+                    <XAxis dataKey="name" stroke={theme.palette.text.primary} />
+                    <YAxis stroke={theme.palette.text.primary} />
+                    <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, color: theme.palette.text.primary }} />
+                    <Legend wrapperStyle={{ color: theme.palette.text.primary }} />
+                    <Bar dataKey="used" fill={theme.palette.primary.main} name="Used Capacity" />
+                    <Bar dataKey="total" fill={theme.palette.secondary.main} name="Total Capacity" />
+                </BarChart>
+                </ResponsiveContainer>
+            </Paper>
 
-            {/* --- Warehouses Section --- */}
-            <section>
-                <h2>Warehouses</h2>
-                    <table border="1" cellPadding="5">
-                    <thead>
-                        <tr>
-                        <th>Name</th>
-                        <th>Location</th>
-                        <th>Used Capacity</th>
-                        <th>Capacity</th>
-                        <th>Description</th>
-                        <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {warehouses.map((w) => (
-                        <tr key={w.id}>
-                            <td>{w.name}</td>
-                            <td>{w.location}</td>
-                            <td>{w.capacityUsed}</td>
-                            <td>{w.capacity}</td>
-                            <td>{w.description}</td>
-                            <td>
-                            <button onClick={() => setEditingWarehouse(w)}>Edit</button>
-                            <button onClick={() => deleteWarehouse(w.id)}>Delete</button>
-                            </td>
-                        </tr>
-                        ))}
-                    </tbody>
-                    </table>
+            {/* Device Quantity by Brand Chart */}
+            <Paper sx={{ flex: 1, p: 2 }}>
+                <Typography variant="h6" mb={2} color={theme.palette.text.primary}>
+                Devices by Brand
+                </Typography>
+                <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={deviceBrandData}>
+                    <CartesianGrid stroke={theme.palette.text.secondary} strokeDasharray="3 3" />
+                    <XAxis dataKey="brand" stroke={theme.palette.text.primary} />
+                    <YAxis stroke={theme.palette.text.primary} />
+                    <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, color: theme.palette.text.primary }} />
+                    <Legend wrapperStyle={{ color: theme.palette.text.primary }} />
+                    <Bar dataKey="quantity" fill={theme.palette.primary.main} name="Quantity" />
+                </BarChart>
+                </ResponsiveContainer>
+            </Paper>
+        </Box>
 
-                    <h3>Add Warehouse</h3>
-                    <input placeholder="Name" value={newWarehouse.name} onChange={(e) => setNewWarehouse({...newWarehouse, name: e.target.value})} />
-                    <input placeholder="Location" value={newWarehouse.location} onChange={(e) => setNewWarehouse({...newWarehouse, location: e.target.value})} />
-                    <input type="number" placeholder="Capacity" value={newWarehouse.capacity} onChange={(e) => setNewWarehouse({...newWarehouse, capacity: parseInt(e.target.value)})} />
-                    <input placeholder="Description" value={newWarehouse.description} onChange={(e) => setNewWarehouse({...newWarehouse, description: e.target.value})} />
-                    <button onClick={addWarehouse}>Add Warehouse</button>
+        {/* --- Warehouses Section --- */}
+        <Paper sx={{ mb: 5, p: 3, borderRadius: 2, boxShadow: 3 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+            <Typography variant="h5" fontWeight="medium">
+            WAREHOUSES
+            </Typography>
+            <Button variant="contained" onClick={() => setOpenAddWarehouse(true)}>
+            Add Warehouse
+            </Button>
+        </Box>
 
-                    {editingWarehouse && (
-                        <div style={{ marginTop: "20px", padding: "10px", border: "1px solid gray" }}>
-                            <h3>Edit Warehouse</h3>
+        <Table sx={{ minWidth: 650, borderRadius: 1 }}>
+            <TableHead sx={{}}>
+            <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Location</TableCell>
+                <TableCell>Used Capacity</TableCell>
+                <TableCell>Capacity</TableCell>
+                <TableCell>Description</TableCell>
+                <TableCell>Actions</TableCell>
+            </TableRow>
+            </TableHead>
+            <TableBody>
+            {warehouses.map((w) => (
+                <TableRow key={w.id} hover>
+                <TableCell>{w.name}</TableCell>
+                <TableCell>{w.location}</TableCell>
+                <TableCell>{w.capacityUsed}</TableCell>
+                <TableCell>{w.capacity}</TableCell>
+                <TableCell>{w.description}</TableCell>
+                <TableCell>
+                    <Box display="flex" gap={1}>
+                    <Button variant="outlined" size="small" onClick={() => setEditingWarehouse(w)}>Edit</Button>
+                    <Button variant="outlined" size="small" color="error" onClick={() => setConfirmDelete({ open: true, type: "warehouse", id: w.id })}>Delete</Button>
+                    </Box>
+                </TableCell>
+                </TableRow>
+            ))}
+            </TableBody>
+        </Table>
+        </Paper>
 
-                            <input
-                                placeholder="Name"
-                                value={editingWarehouse.name}
-                                onChange={(e) =>
-                                    setEditingWarehouse({ ...editingWarehouse, name: e.target.value })
-                                }
-                            />
-                            <input
-                                placeholder="Location"
-                                value={editingWarehouse.location}
-                                onChange={(e) =>
-                                    setEditingWarehouse({ ...editingWarehouse, location: e.target.value })
-                                }
-                            />
-                            <input
-                                type="number"
-                                placeholder="Capacity"
-                                value={editingWarehouse.capacity}
-                                onChange={(e) =>
-                                    setEditingWarehouse({ ...editingWarehouse, capacity: parseInt(e.target.value) })
-                                }
-                            />
-                            <input
-                                placeholder="Description"
-                                value={editingWarehouse.description}
-                                onChange={(e) =>
-                                    setEditingWarehouse({ ...editingWarehouse, description: e.target.value })
-                                }
-                            />
+        {/* --- Devices Section --- */}
+        <Paper sx={{ mb: 5, p: 3, borderRadius: 2, boxShadow: 3}}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+            <Typography variant="h5" fontWeight="medium">
+            DEVICES
+            </Typography>
+            <Button variant="contained" onClick={() => setOpenAddDevice(true)}>
+            Add Device
+            </Button>
+        </Box>
 
-                            <button onClick={updateWarehouse}>Save</button>
-                            <button onClick={() => setEditingWarehouse(null)}>Cancel</button>
-                        </div>
-                    )}
+        {/* Search bar */}
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+            <TextField
+            placeholder="Search devices..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            sx={{ width: "40%" }}
+            />
+        </Box>
 
-            </section>
+        <Table sx={{ minWidth: 650, borderRadius: 1 }}>
+            <TableHead sx={{}}>
+            <TableRow>
+                <TableCell>Model</TableCell>
+                <TableCell>Brand</TableCell>
+                <TableCell>Category</TableCell>
+                <TableCell>SKU</TableCell>
+                <TableCell>Quantity</TableCell>
+                <TableCell>Description</TableCell>
+                <TableCell>Storage</TableCell>
+                <TableCell>Warehouse</TableCell>
+                <TableCell>Actions</TableCell>
+            </TableRow>
+            </TableHead>
+            <TableBody>
+            {filteredDevices.map((d) => (
+                <TableRow key={d.id} hover>
+                <TableCell>{d.modelName}</TableCell>
+                <TableCell>{d.brand}</TableCell>
+                <TableCell>{d.category}</TableCell>
+                <TableCell>{d.sku}</TableCell>
+                <TableCell>{d.quantity}</TableCell>
+                <TableCell>{d.description}</TableCell>
+                <TableCell>{d.storageLocation}</TableCell>
+                <TableCell>{d.warehouse ? d.warehouse.name : "N/A"}</TableCell>
+                <TableCell>
+                    <Box display="flex" gap={1}>
+                    <Button variant="outlined" size="small" onClick={() => setEditingDevice({ ...d, warehouseId: d.warehouse?.id || "" })}>Edit</Button>
+                    <Button variant="outlined" size="small" color="error" onClick={() => setConfirmDelete({ open: true, type: "device", id: d.id })}>Delete</Button>
+                    </Box>
+                </TableCell>
+                </TableRow>
+            ))}
+            </TableBody>
+        </Table>
+        </Paper>
 
-            {/* --- Devices Section --- */}
-            <section style={{ marginTop: "40px" }}>
-                <h2>Devices</h2>
-                <input
-                    placeholder="Search devices..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <table border="1" cellPadding="5">
-                    <thead>
-                        <tr>
-                        <th>Model</th>
-                        <th>Brand</th>
-                        <th>Category</th>
-                        <th>SKU</th>
-                        <th>Quantity</th>
-                        <th>Description</th>
-                        <th>Storage</th>
-                        <th>Warehouse</th>
-                        <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredDevices.map((d) => (
-                        <tr key={d.id}>
-                            <td>{d.modelName}</td>
-                            <td>{d.brand}</td>
-                            <td>{d.category}</td>
-                            <td>{d.sku}</td>
-                            <td>{d.quantity}</td>
-                            <td>{d.description}</td>
-                            <td>{d.storageLocation}</td>
-                            <td>{d.warehouse ? d.warehouse.name : "N/A"}</td>
-                            <td>
-                            <button onClick={() => setEditingDevice(d)}>Edit</button>
-                            <button onClick={() => deleteDevice(d.id)}>Delete</button>
-                            </td>
-                        </tr>
-                        ))}
-                    </tbody>
-                </table>
+        {/* --- Add / Edit Warehouse Modal --- */}
+        <Dialog open={openAddWarehouse || !!editingWarehouse} onClose={() => { setOpenAddWarehouse(false); setEditingWarehouse(null); }}>
+        <DialogTitle>{editingWarehouse ? "Edit Warehouse" : "Add Warehouse"}</DialogTitle>
+        <DialogContent>
+            <Box display="flex" flexDirection="column" gap={2} mt={1}>
+            <TextField fullWidth label="Name" value={editingWarehouse?.name || newWarehouse.name} onChange={(e) => editingWarehouse ? setEditingWarehouse({ ...editingWarehouse, name: e.target.value }) : setNewWarehouse({ ...newWarehouse, name: e.target.value })} />
+            <TextField fullWidth label="Location" value={editingWarehouse?.location || newWarehouse.location} onChange={(e) => editingWarehouse ? setEditingWarehouse({ ...editingWarehouse, location: e.target.value }) : setNewWarehouse({ ...newWarehouse, location: e.target.value })} />
+            <TextField fullWidth label="Capacity" type="number" value={editingWarehouse?.capacity || newWarehouse.capacity} onChange={(e) => editingWarehouse ? setEditingWarehouse({ ...editingWarehouse, capacity: parseInt(e.target.value) }) : setNewWarehouse({ ...newWarehouse, capacity: parseInt(e.target.value) })} />
+            <TextField fullWidth label="Description" value={editingWarehouse?.description || newWarehouse.description} onChange={(e) => editingWarehouse ? setEditingWarehouse({ ...editingWarehouse, description: e.target.value }) : setNewWarehouse({ ...newWarehouse, description: e.target.value })} />
+            </Box>
+        </DialogContent>
+        <DialogActions>
+            <Button onClick={editingWarehouse ? updateWarehouse : addWarehouse}>{editingWarehouse ? "Save" : "Add"}</Button>
+            <Button onClick={() => { setOpenAddWarehouse(false); setEditingWarehouse(null); }}>Cancel</Button>
+        </DialogActions>
+        </Dialog>
 
-                <h3>Add Device</h3>
-                <input placeholder="Model Name" value={newDevice.modelName} onChange={(e) => setNewDevice({...newDevice, modelName: e.target.value})} />
-                <input placeholder="Brand" value={newDevice.brand} onChange={(e) => setNewDevice({...newDevice, brand: e.target.value})} />
-                <input placeholder="Category" value={newDevice.category} onChange={(e) => setNewDevice({...newDevice, category: e.target.value})} />
-                <input placeholder="SKU" value={newDevice.sku} onChange={(e) => setNewDevice({...newDevice, sku: e.target.value})} />
-                <input type="number" placeholder="Quantity" value={newDevice.quantity} onChange={(e) => setNewDevice({...newDevice, quantity: parseInt(e.target.value)})} />
-                <input placeholder="Description" value={newDevice.description} onChange={(e) => setNewDevice({...newDevice, description: e.target.value})} />
-                <input placeholder="Storage Location" value={newDevice.storageLocation} onChange={(e) => setNewDevice({...newDevice, storageLocation: e.target.value})} />
-                <select value={newDevice.warehouseId} onChange={(e) => setNewDevice({...newDevice, warehouseId: e.target.value})}>
-                    <option value="">Select Warehouse</option>
-                    {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                </select>
-                <button onClick={addDevice}>Add Device</button>
+        {/* --- Add / Edit Device Modal --- */}
+        <Dialog open={openAddDevice || !!editingDevice} onClose={() => { setOpenAddDevice(false); setEditingDevice(null); }}>
+        <DialogTitle>{editingDevice ? "Edit Device" : "Add Device"}</DialogTitle>
+        <DialogContent>
+            <Box display="flex" flexDirection="column" gap={2} mt={1}>
+            <TextField fullWidth label="Model Name" value={editingDevice?.modelName || newDevice.modelName} onChange={(e) => editingDevice ? setEditingDevice({ ...editingDevice, modelName: e.target.value }) : setNewDevice({ ...newDevice, modelName: e.target.value })} />
+            <TextField fullWidth label="Brand" value={editingDevice?.brand || newDevice.brand} onChange={(e) => editingDevice ? setEditingDevice({ ...editingDevice, brand: e.target.value }) : setNewDevice({ ...newDevice, brand: e.target.value })} />
+            <TextField fullWidth label="Category" value={editingDevice?.category || newDevice.category} onChange={(e) => editingDevice ? setEditingDevice({ ...editingDevice, category: e.target.value }) : setNewDevice({ ...newDevice, category: e.target.value })} />
+            <TextField fullWidth label="SKU" value={editingDevice?.sku || newDevice.sku} onChange={(e) => editingDevice ? setEditingDevice({ ...editingDevice, sku: e.target.value }) : setNewDevice({ ...newDevice, sku: e.target.value })} />
+            <TextField fullWidth label="Quantity" type="number" value={editingDevice?.quantity || newDevice.quantity} onChange={(e) => editingDevice ? setEditingDevice({ ...editingDevice, quantity: parseInt(e.target.value) }) : setNewDevice({ ...newDevice, quantity: parseInt(e.target.value) })} />
+            <TextField fullWidth label="Description" value={editingDevice?.description || newDevice.description} onChange={(e) => editingDevice ? setEditingDevice({ ...editingDevice, description: e.target.value }) : setNewDevice({ ...newDevice, description: e.target.value })} />
+            <TextField fullWidth label="Storage Location" value={editingDevice?.storageLocation || newDevice.storageLocation} onChange={(e) => editingDevice ? setEditingDevice({ ...editingDevice, storageLocation: e.target.value }) : setNewDevice({ ...newDevice, storageLocation: e.target.value })} />
+            <FormControl fullWidth>
+                <InputLabel>Warehouse</InputLabel>
+                <Select value={editingDevice?.warehouseId || newDevice.warehouseId} onChange={(e) => editingDevice ? setEditingDevice({ ...editingDevice, warehouseId: e.target.value }) : setNewDevice({ ...newDevice, warehouseId: e.target.value })}>
+                {warehouses.map((w) => <MenuItem key={w.id} value={w.id}>{w.name}</MenuItem>)}
+                </Select>
+            </FormControl>
+            </Box>
+        </DialogContent>
+        <DialogActions>
+            <Button onClick={editingDevice ? updateDevice : addDevice}>{editingDevice ? "Save" : "Add"}</Button>
+            <Button onClick={() => { setOpenAddDevice(false); setEditingDevice(null); }}>Cancel</Button>
+        </DialogActions>
+        </Dialog>
 
-                {editingDevice && (
-                    <div style={{ marginTop: "20px", padding: "10px", border: "1px solid gray" }}>
-                        <h3>Edit Device</h3>
-
-                        <input
-                            placeholder="Model Name"
-                            value={editingDevice.modelName}
-                            onChange={(e) =>
-                                setEditingDevice({ ...editingDevice, modelName: e.target.value })
-                            }
-                        />
-                        <input
-                            placeholder="Brand"
-                            value={editingDevice.brand}
-                            onChange={(e) =>
-                                setEditingDevice({ ...editingDevice, brand: e.target.value })
-                            }
-                        />
-                        <input
-                            placeholder="Category"
-                            value={editingDevice.category}
-                            onChange={(e) =>
-                                setEditingDevice({ ...editingDevice, category: e.target.value })
-                            }
-                        />
-                        <input
-                            placeholder="SKU"
-                            value={editingDevice.sku}
-                            onChange={(e) =>
-                                setEditingDevice({ ...editingDevice, sku: e.target.value })
-                            }
-                        />
-                        <input
-                            type="number"
-                            placeholder="Quantity"
-                            value={editingDevice.quantity}
-                            onChange={(e) =>
-                                setEditingDevice({
-                                    ...editingDevice,
-                                    quantity: parseInt(e.target.value)
-                                })
-                            }
-                        />
-                        <input
-                            placeholder="Description"
-                            value={editingDevice.description}
-                            onChange={(e) =>
-                                setEditingDevice({ ...editingDevice, description: e.target.value })
-                            }
-                        />
-                        <input
-                            placeholder="Storage Location"
-                            value={editingDevice.storageLocation}
-                            onChange={(e) =>
-                                setEditingDevice({
-                                    ...editingDevice,
-                                    storageLocation: e.target.value
-                                })
-                            }
-                        />
-
-                        {/* Warehouse dropdown */}
-                        <select
-                            value={editingDevice.warehouseId || ""}
-                            onChange={(e) =>
-                                setEditingDevice({
-                                    ...editingDevice,
-                                    warehouseId: e.target.value
-                                })
-                            }
-                        >
-                            <option value="">Select Warehouse</option>
-                            {warehouses.map((w) => (
-                                <option key={w.id} value={w.id}>{w.name}</option>
-                            ))}
-                        </select>
+        {/* --- Delete Modal --- */}
+        <Dialog
+            open={confirmDelete.open}
+            onClose={() => setConfirmDelete({ ...confirmDelete, open: false })}
+            >
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogContent>
+                Are you sure you want to delete this {confirmDelete.type}?
+            </DialogContent>
+            <DialogActions>
+                <Button
+                onClick={() => {
+                    if (confirmDelete.type === "device") deleteDevice(confirmDelete.id);
+                    if (confirmDelete.type === "warehouse") deleteWarehouse(confirmDelete.id);
+                    setConfirmDelete({ open: false, type: "", id: null });
+                }}
+                color="error"
+                >
+                Yes, Delete
+                </Button>
+                <Button
+                onClick={() => setConfirmDelete({ open: false, type: "", id: null })}
+                color="primary"
+                >
+                Cancel
+                </Button>
+            </DialogActions>
+        </Dialog>
 
 
-                        <button onClick={updateDevice}>Save</button>
-                        <button onClick={() => setEditingDevice(null)}>Cancel</button>
-                    </div>
-                )}
-
-            </section>
-        </div>
+        </Box>
     );
+
 };
 
 export default Dashboard;
