@@ -1,8 +1,13 @@
 // Imports
 import React, { useState, useEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Box, Paper, Table, TableHead, TableBody, TableRow, TableCell, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, Typography, InputLabel, FormControl } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+
+// Alert Box
+const AlertsBox = ({ alerts }) => {
+  if (alerts.length === 0) return null;
+};
 
 // Main dashboard component
 const Dashboard = () => {
@@ -13,6 +18,9 @@ const Dashboard = () => {
     // Open States for adding modals
     const [openAddWarehouse, setOpenAddWarehouse] = useState(false);
     const [openAddDevice, setOpenAddDevice] = useState(false);
+
+    // Recent Acts States
+    const [recentActivities, setRecentActivities] = useState([]);
 
     // Edit States
     const [editingWarehouse, setEditingWarehouse] = useState(null);
@@ -127,10 +135,23 @@ const Dashboard = () => {
 
         // Close warehouse modal
         setOpenAddWarehouse(false);
+
+        // Add to recent acts
+        addActivity(`Added warehouse '${newWarehouse.name}' to database`);
     }
 
     const deleteWarehouse = async (id) => {
+        // Get Warehouse object for recent acts
+        const warehouse = warehouses.find(w => w.id === id);
+
+        // safety check
+        if (!warehouse) return;
+
         await fetch(`http://localhost:8080/api/warehouses/${id}`, { method: "DELETE"});
+
+        // Log to recent activity
+        addActivity(`Deleted warehouse '${warehouse.name}' from database`);
+
         fetchWarehouses();
         fetchDevices();
     }
@@ -149,6 +170,10 @@ const Dashboard = () => {
         });
 
         setEditingWarehouse(null);
+
+        // Log to recent activity
+        addActivity(`Edited warehouse '${editingWarehouse.name}'`);
+
         fetchWarehouses();
     };
 
@@ -180,6 +205,8 @@ const Dashboard = () => {
             storageLocation: "",
             warehouseId: ""
         });
+
+        addActivity(`Added device '${newDevice.sku}' to warehouse '${warehouse.name}'.`);
         fetchDevices();
         fetchWarehouses();
 
@@ -188,7 +215,18 @@ const Dashboard = () => {
     }
 
     const deleteDevice = async (id) => {
+        // Get device object so we can access the info deleting (for recent activity)
+        const device = devices.find(d => d.id === id);
+
         await fetch(`http://localhost:8080/api/devices/${id}`, { method: "DELETE"});
+
+         // Add activity using the actual device data
+        if (device) {
+            addActivity(`Deleted device '${device.modelName}' (SKU: ${device.sku}).`);
+        } else {
+            addActivity(`Deleted a device (ID: ${id}).`);
+        }
+
         fetchWarehouses();
         fetchDevices();
     }
@@ -230,17 +268,95 @@ const Dashboard = () => {
         .then(data => {
             console.log("Updated device:", data);
             setEditingDevice(null);
-            // refresh
+            // refresh and log
+            addActivity(`Edited device '${editingDevice.sku}'`);
             fetchDevices();
             fetchWarehouses();
         })
         .catch(err => console.error(err));
     };
 
+    // Alerts Logic 
+    const alerts = warehouses
+        .filter(w =>
+            Number(w.capacityUsed) / Number(w.capacity) >= 0.9
+        )
+        .map(w => ({
+            type: "warning",
+            message: `${w.name} is at ${Math.round(
+            (Number(w.capacityUsed) / Number(w.capacity)) * 100
+            )}% capacity`
+        }));
+
+    // Add Activities
+    const addActivity = (message) => {
+        const timestamp = new Date().toLocaleString();
+        setRecentActivities((prev) => [
+            { message, timestamp },
+            ...prev.slice(0, 2) // keeps last 20 entries
+        ]);
+    };
+
     return (
         <Box sx={{ p: 3, minHeight: "100vh", backgroundColor: "background.default" }}> 
         <Typography variant="h4" mb={4} fontWeight="bold">
         OVERVIEW </Typography>
+
+        <Box sx={{ backgroundColor: "#0B0F19", borderRadius: 2, padding: 2, mb: 3,}}>
+            <Typography variant="h6" sx={{ mb: 1 }}>
+                Alerts
+            </Typography>
+
+            {alerts.map((alert, index) => (
+                <Box
+                key={index}
+                sx={{
+                    padding: "10px 14px",
+                    borderRadius: 1,
+                    backgroundColor: "#332E00",
+                    border: "1px solid #665C00",
+                    mb: 1,
+                }}
+                >
+                <Typography sx={{ color: "#FACC15" }}>
+                    ⚠️ {alert.message}
+                </Typography>
+                </Box>
+            ))}
+        </Box>
+
+        {/* Alerts */}
+        <AlertsBox alerts={alerts} />
+        
+        {/* Recent Activity */}
+        <Paper style={{ marginBottom: "20px" }}>
+            <Typography variant="h6" sx={{ mb: 2, color: "text.primary" }}>
+                Recent Activity
+            </Typography>
+
+            {recentActivities.length === 0 ? (
+                <Typography sx={{ color: "text.secondary" }}>No recent activity.</Typography>
+            ) : (
+                recentActivities.map((activity, index) => (
+                <Box
+                    key={index}
+                    sx={{
+                    padding: "10px 0",
+                    borderBottom: index < recentActivities.length - 1 ? "1px solid #2a2a2a" : "none"
+                    }}
+                >
+                    <Typography sx={{ color: "text.primary" }}>
+                    {activity.message}
+                    </Typography>
+                    <Typography sx={{ fontSize: "0.8rem", color: "text.secondary" }}>
+                    {activity.timestamp}
+                    </Typography>
+                </Box>
+                ))
+            )}
+        </Paper>
+
+
         <Box display="flex" gap={2} mb={4}>
             {/* Warehouse Usage Chart */}
             <Paper sx={{ flex: 1, p: 2 }}>
@@ -248,34 +364,50 @@ const Dashboard = () => {
                 Warehouse Usage
                 </Typography>
                 <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={warehouseChartData}>
-                    <CartesianGrid stroke={theme.palette.text.secondary} strokeDasharray="3 3" />
-                    <XAxis dataKey="name" stroke={theme.palette.text.primary} />
-                    <YAxis stroke={theme.palette.text.primary} />
-                    <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, color: theme.palette.text.primary }} />
-                    <Legend wrapperStyle={{ color: theme.palette.text.primary }} />
-                    <Bar dataKey="used" fill={theme.palette.primary.main} name="Used Capacity" />
-                    <Bar dataKey="total" fill={theme.palette.secondary.main} name="Total Capacity" />
-                </BarChart>
-                </ResponsiveContainer>
+                    <BarChart data={warehouseChartData}>
+                        <defs>
+                        <linearGradient id="warehouseGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={theme.palette.primary.main} stopOpacity={0.8}/>
+                            <stop offset="100%" stopColor={theme.palette.primary.main} stopOpacity={0.2}/>
+                        </linearGradient>
+                        <linearGradient id="warehouseTotalGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={theme.palette.secondary.main} stopOpacity={0.8}/>
+                            <stop offset="100%" stopColor={theme.palette.secondary.main} stopOpacity={0.2}/>
+                        </linearGradient>
+                        </defs>
+                        <CartesianGrid stroke={theme.palette.text.secondary} strokeDasharray="3 3" />
+                        <XAxis dataKey="name" stroke={theme.palette.text.primary} />
+                        <YAxis stroke={theme.palette.text.primary} />
+                        <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, color: theme.palette.text.primary }} />
+                        <Legend wrapperStyle={{ color: theme.palette.text.primary }} />
+                        <Bar dataKey="used" fill="url(#warehouseGradient)" name="Used Capacity" />
+                        <Bar dataKey="total" fill="url(#warehouseTotalGradient)" name="Total Capacity" />
+                    </BarChart>
+                    </ResponsiveContainer>
             </Paper>
 
-            {/* Device Quantity by Brand Chart */}
+            {/* Device Quantity by Brand Area Chart */}
             <Paper sx={{ flex: 1, p: 2 }}>
-                <Typography variant="h6" mb={2} color={theme.palette.text.primary}>
+            <Typography variant="h6" mb={2} color={theme.palette.text.primary}>
                 Devices by Brand
-                </Typography>
-                <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={deviceBrandData}>
-                    <CartesianGrid stroke={theme.palette.text.secondary} strokeDasharray="3 3" />
-                    <XAxis dataKey="brand" stroke={theme.palette.text.primary} />
-                    <YAxis stroke={theme.palette.text.primary} />
-                    <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, color: theme.palette.text.primary }} />
-                    <Legend wrapperStyle={{ color: theme.palette.text.primary }} />
-                    <Bar dataKey="quantity" fill={theme.palette.primary.main} name="Quantity" />
-                </BarChart>
-                </ResponsiveContainer>
+            </Typography>
+            <ResponsiveContainer width="100%" height={250}>
+                <AreaChart data={deviceBrandData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <defs>
+                    <linearGradient id="colorQuantity" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0}/>
+                    </linearGradient>
+                </defs>
+                <CartesianGrid stroke={theme.palette.text.secondary} strokeDasharray="3 3" />
+                <XAxis dataKey="brand" stroke={theme.palette.text.primary} />
+                <YAxis stroke={theme.palette.text.primary} />
+                <Tooltip contentStyle={{ backgroundColor: theme.palette.background.paper, color: theme.palette.text.primary }} />
+                <Area type="monotone" dataKey="quantity" stroke={theme.palette.primary.main} fill="url(#colorQuantity)" />
+                </AreaChart>
+            </ResponsiveContainer>
             </Paper>
+
         </Box>
 
         {/* --- Warehouses Section --- */}
