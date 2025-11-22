@@ -109,6 +109,7 @@ const Dashboard = () => {
         used: w.capacityUsed,
         total: w.capacity
     }));   
+    
     // For Device Quantity by Brand Chart
     const deviceBrandData = Object.values(
         devices.reduce((acc, d) => {
@@ -163,10 +164,17 @@ const Dashboard = () => {
             return;
         }
 
+        const payload = {
+            name: editingWarehouse.name,
+            location: editingWarehouse.location,
+            capacity: editingWarehouse.capacity,
+            description: editingWarehouse.description
+        };
+
         await fetch(`http://localhost:8080/api/warehouses/${editingWarehouse.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(editingWarehouse),
+            body: JSON.stringify(payload),
         });
 
         setEditingWarehouse(null);
@@ -175,6 +183,7 @@ const Dashboard = () => {
         addActivity(`Edited warehouse '${editingWarehouse.name}'`);
 
         fetchWarehouses();
+        fetchDevices();
     };
 
 
@@ -207,6 +216,8 @@ const Dashboard = () => {
         });
 
         addActivity(`Added device '${newDevice.sku}' to warehouse '${warehouse.name}'.`);
+
+        // Refresh
         fetchDevices();
         fetchWarehouses();
 
@@ -268,8 +279,11 @@ const Dashboard = () => {
         .then(data => {
             console.log("Updated device:", data);
             setEditingDevice(null);
-            // refresh and log
+
+            // Log
             addActivity(`Edited device '${editingDevice.sku}'`);
+
+            // Refresh
             fetchDevices();
             fetchWarehouses();
         })
@@ -293,7 +307,7 @@ const Dashboard = () => {
         const timestamp = new Date().toLocaleString();
         setRecentActivities((prev) => [
             { message, timestamp },
-            ...prev.slice(0, 2) // keeps last 20 entries
+            ...prev.slice(0, 2)
         ]);
     };
 
@@ -581,11 +595,8 @@ const Dashboard = () => {
                 </Button>
             </DialogActions>
         </Dialog>
-
-
         </Box>
     );
-
 };
 
 export default Dashboard;

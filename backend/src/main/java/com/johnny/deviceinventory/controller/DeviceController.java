@@ -32,7 +32,7 @@ public class DeviceController {
             @RequestParam Long warehouseId,
             @Valid @RequestBody Device device) {
 
-        return deviceService.save(device, warehouseId); // includes capacity check
+        return deviceService.save(device, warehouseId); 
     }
 
     @PutMapping("/{id}")
@@ -59,7 +59,7 @@ public class DeviceController {
         Warehouse warehouse = deviceService.getWarehouseById(warehouseId);
         existing.setWarehouse(warehouse);
 
-        // Use main "save" so capacity rules run
+        // Use main save so capacity rules run
         return deviceService.save(existing, warehouseId);
     }
 

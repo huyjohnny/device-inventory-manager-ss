@@ -51,7 +51,7 @@ public class DeviceService {
             oldWarehouse = existing.getWarehouse();
         }
 
-        // NEW DEVICE
+        // New device
         if (isNewDevice) {
             long currentCount = deviceRepository.countByWarehouseId(warehouseId);
             if (currentCount >= warehouse.getCapacity()) {
@@ -59,7 +59,7 @@ public class DeviceService {
             }
         }
 
-        // EXISTING DEVICE
+        // Existing device
         if (!isNewDevice && !oldWarehouse.getId().equals(warehouseId)) {
 
             long currentCount = deviceRepository.countByWarehouseId(warehouseId);
@@ -73,8 +73,6 @@ public class DeviceService {
 
         return deviceRepository.save(device);
     }
-
-
 
     public Device saveRaw(Device device) {
         return deviceRepository.save(device);

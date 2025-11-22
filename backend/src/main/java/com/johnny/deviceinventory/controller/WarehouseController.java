@@ -45,9 +45,6 @@ public class WarehouseController {
         return warehouseService.save(warehouse);
     }
 
-
-
-
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         warehouseService.delete(id);
